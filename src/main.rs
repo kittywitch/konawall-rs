@@ -2,6 +2,7 @@ use anyhow::Result;
 use futures::future::try_join_all;
 use rand::seq::SliceRandom;
 use serde::Deserialize;
+use std::env;
 use std::fs::File;
 use std::future::Future;
 use std::io::Write;
@@ -43,7 +44,10 @@ async fn get_files<'p>(
         Ok(response_json
             .into_iter()
             .map(|post| {
-                println!("{} - {:?}", tags, post.file_url);
+                let post_link = format!("https://konachan.com/post/show/{}", post.id);
+                println!("Post: {}", post_link);
+                println!("- Tags: {}", tags);
+                println!("- Download: {}", post.file_url);
                 get_file(dir, post)
             })
             .collect())
@@ -101,24 +105,6 @@ async fn set_i3_wallpaper(filenames: Vec<PathBuf>) -> Result<()> {
 }
 
 #[derive(Debug, StructOpt)]
-enum WMs {
-    I3,
-    Sway,
-}
-
-impl FromStr for WMs {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "i3" => Ok(WMs::I3),
-            "sway" => Ok(WMs::Sway),
-            _ => Err(anyhow::format_err!("Unimplemented WM {}", s)),
-        }
-    }
-}
-
-#[derive(Debug, StructOpt)]
 enum Modes {
     Random,
     OutputMap,
@@ -143,8 +129,6 @@ impl FromStr for Modes {
 struct Opt {
     #[structopt(default_value = "nobody")]
     tags: Vec<String>,
-    #[structopt(long)]
-    wm: WMs,
     #[structopt(long, default_value = "score:>=200+width:>=1600+")]
     common: String,
     #[structopt(long, default_value = "random")]
@@ -172,8 +156,12 @@ async fn filenames_get(
         Modes::OutputMapShuffle => mode_shuffle.next(),
     });
 
-    for (_, tag) in (0..outputs).zip(tag_set) {
-        filenames.extend(get_files(temp_dir, common_tags, tag, 1).await?);
+    if tag_list.len() <= 1 {
+        filenames.extend(get_files(temp_dir, common_tags, &tag_list[0], outputs as u8).await?);
+    } else {
+        for (_, tag) in (0..outputs).zip(tag_set) {
+            filenames.extend(get_files(temp_dir, common_tags, tag, 1).await?);
+        }
     }
 
     let filenames = try_join_all(filenames).await?;
@@ -185,15 +173,18 @@ async fn filenames_get(
 async fn main() -> Result<()> {
     let temp_dir = tempdir()?;
 
-    let opt = Opt::from_args();
-    let tag_list = opt.tags;
-    let common_tags = opt.common;
-    let mode = opt.mode;
+    let Opt {
+        tags: tag_list,
+        common: common_tags,
+        mode,
+    } = Opt::from_args();
+
+    let sway_detect = env::var("SWAYSOCK");
 
     let mut sway_conn: swayipc_async::Connection;
 
-    match opt.wm {
-        WMs::I3 => {
+    match sway_detect {
+        Err(_) => {
             let outputs = XHandle::open()?.monitors()?;
             let filenames = filenames_get(
                 outputs.len(),
@@ -205,7 +196,7 @@ async fn main() -> Result<()> {
             .await?;
             set_i3_wallpaper(filenames).await?
         }
-        WMs::Sway => {
+        Ok(_) => {
             sway_conn = Connection::new().await?;
             let outputs = sway_conn.get_outputs().await?;
             let filenames = filenames_get(
