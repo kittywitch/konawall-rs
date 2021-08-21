@@ -7,7 +7,7 @@ konawall 0.1.0
 wallpaper randomizer that uses konachan
 
 USAGE:
-    konawall [OPTIONS] --wm <wm> [tags]...
+    konawall [OPTIONS] [tags]...
 
 FLAGS:
     -h, --help       Prints help information
@@ -16,9 +16,9 @@ FLAGS:
 OPTIONS:
         --common <common>     [default: score:>=200+width:>=1600+]
         --mode <mode>         [default: random]
-        --wm <wm>
 
 ARGS:
+    <tags>...     [default: nobody]
 ```
 
 ## Available Modes
