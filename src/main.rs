@@ -1,19 +1,19 @@
+use anyhow::Result;
+use futures::future::try_join_all;
+use rand::seq::SliceRandom;
+use serde::Deserialize;
+use std::fs::File;
+use std::future::Future;
+use std::io::Write;
+use std::iter;
 use std::path::{Path, PathBuf};
 use std::str::{self, FromStr};
-use tempfile::tempdir;
-use serde::Deserialize;
-use std::io::Write;
-use std::fs::File;
-use anyhow::Result;
-use std::future::Future;
-use futures::future::try_join_all;
 use structopt::StructOpt;
-use tokio::process::Command;
-use rand::seq::SliceRandom;
 use swayipc_async::Connection;
-use xrandr::XHandle;
+use tempfile::tempdir;
+use tokio::process::Command;
 use tokio::time::{sleep, Duration};
-use std::iter;
+use xrandr::XHandle;
 
 #[derive(Deserialize, Debug)]
 struct Post {
@@ -26,18 +26,27 @@ struct Failure {
     reason: String,
 }
 
-async fn get_files <'p> (dir: &'p Path, common_tags: &str, tags: &str, count: u8) -> Result<Vec<impl Future <Output=Result<PathBuf>> +'p>>  {
+async fn get_files<'p>(
+    dir: &'p Path,
+    common_tags: &str,
+    tags: &str,
+    count: u8,
+) -> Result<Vec<impl Future<Output = Result<PathBuf>> + 'p>> {
     let tags_appended = format!("{}{}{}", &common_tags, tags, "+order:random");
-    let url_with_parameters = format!("https://konachan.com/post.json?limit={}&tags={}", count, tags_appended);
+    let url_with_parameters = format!(
+        "https://konachan.com/post.json?limit={}&tags={}",
+        count, tags_appended
+    );
     let response = reqwest::get(url_with_parameters).await?;
     if response.status().is_success() {
         let response_json: Vec<Post> = response.json().await?;
-        Ok(response_json.into_iter().map( |post|
-            {
+        Ok(response_json
+            .into_iter()
+            .map(|post| {
                 println!("{} - {:?}", tags, post.file_url);
                 get_file(dir, post)
-            }
-        ).collect())
+            })
+            .collect())
     } else {
         let response_json: Failure = response.json().await?;
         Err(anyhow::format_err!(response_json.reason))
@@ -45,7 +54,11 @@ async fn get_files <'p> (dir: &'p Path, common_tags: &str, tags: &str, count: u8
 }
 
 async fn get_file(dir: &Path, post: Post) -> Result<PathBuf> {
-    let url_extension = post.file_url.split(".").last().ok_or(anyhow::format_err!("no extension"))?;
+    let url_extension = post
+        .file_url
+        .split(".")
+        .last()
+        .ok_or(anyhow::format_err!("no extension"))?;
     let file_path = dir.join(&format!("{}.{}", post.id, url_extension));
 
     let mut image_request = reqwest::get(post.file_url).await?;
@@ -53,13 +66,22 @@ async fn get_file(dir: &Path, post: Post) -> Result<PathBuf> {
 
     while let Some(chunk) = image_request.chunk().await? {
         file.write_all(&chunk)?;
-    };
+    }
     Ok(file_path)
 }
 
-async fn set_sway_wallpaper(sway_conn: &mut Connection, output: swayipc_async::Output, filename: PathBuf) -> Result<()> {
+async fn set_sway_wallpaper(
+    sway_conn: &mut Connection,
+    output: swayipc_async::Output,
+    filename: PathBuf,
+) -> Result<()> {
     let wallpaper_path = filename.as_path().display().to_string();
-    sway_conn.run_command(format!("output {} background {} fill", output.name, wallpaper_path)).await?;
+    sway_conn
+        .run_command(format!(
+            "output {} background {} fill",
+            output.name, wallpaper_path
+        ))
+        .await?;
     Ok(())
 }
 
@@ -119,24 +141,31 @@ impl FromStr for Modes {
 #[derive(Debug, StructOpt)]
 #[structopt(name = "konawall", about = "wallpaper randomizer that uses konachan")]
 struct Opt {
-    #[structopt(default_value="nobody")]
+    #[structopt(default_value = "nobody")]
     tags: Vec<String>,
     #[structopt(long)]
     wm: WMs,
-    #[structopt(long, default_value="score:>=200+width:>=1600+")]
+    #[structopt(long, default_value = "score:>=200+width:>=1600+")]
     common: String,
-    #[structopt(long, default_value="random")]
+    #[structopt(long, default_value = "random")]
     mode: Modes,
 }
 
-async fn filenames_get(outputs: usize, temp_dir: &Path, mode: Modes, common_tags: &str, tag_list: &Vec<String>) -> Result<Vec<PathBuf>> {
+async fn filenames_get(
+    outputs: usize,
+    temp_dir: &Path,
+    mode: Modes,
+    common_tags: &str,
+    tag_list: &Vec<String>,
+) -> Result<Vec<PathBuf>> {
     let mut filenames = Vec::new();
 
     let mut rng_random = &mut rand::thread_rng();
     let mut rng_shuffle = &mut rand::thread_rng();
     let mut mode_random = iter::from_fn(|| tag_list.choose(&mut rng_random));
     let mut mode_map = tag_list.iter().cycle();
-    let mut mode_shuffle = iter::repeat_with(|| tag_list.choose_multiple(&mut rng_shuffle, outputs)).flat_map(|i| i);
+    let mut mode_shuffle =
+        iter::repeat_with(|| tag_list.choose_multiple(&mut rng_shuffle, outputs)).flat_map(|i| i);
     let tag_set = iter::from_fn(|| match mode {
         Modes::Random => mode_random.next(),
         Modes::OutputMap => mode_map.next(),
@@ -166,19 +195,33 @@ async fn main() -> Result<()> {
     match opt.wm {
         WMs::I3 => {
             let outputs = XHandle::open()?.monitors()?;
-            let filenames = filenames_get(outputs.len(), &temp_dir.path(), mode, &common_tags, &tag_list).await?;
+            let filenames = filenames_get(
+                outputs.len(),
+                &temp_dir.path(),
+                mode,
+                &common_tags,
+                &tag_list,
+            )
+            .await?;
             set_i3_wallpaper(filenames).await?
-        },
+        }
         WMs::Sway => {
             sway_conn = Connection::new().await?;
             let outputs = sway_conn.get_outputs().await?;
-            let filenames = filenames_get(outputs.len(), &temp_dir.path(), mode, &common_tags, &tag_list).await?;
+            let filenames = filenames_get(
+                outputs.len(),
+                &temp_dir.path(),
+                mode,
+                &common_tags,
+                &tag_list,
+            )
+            .await?;
             for (output, filename) in outputs.into_iter().zip(filenames) {
                 set_sway_wallpaper(&mut sway_conn, output, filename).await?;
-            };
+            }
             sleep(Duration::from_millis(250)).await;
             ()
-        },
+        }
     };
 
     Ok(())
