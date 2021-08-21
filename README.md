@@ -20,3 +20,9 @@ OPTIONS:
 
 ARGS:
 ```
+
+## Available Modes
+
+* random - Picks one of the tag sets provided with --common prepended.
+* map - Maps output to tag set directly with --common prepended.
+* shuffle - Does what map does, but shuffles first.
