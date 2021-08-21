@@ -70,6 +70,11 @@ async fn set_i3_wallpaper(filenames: Vec<PathBuf>) -> Result<()> {
         .status()
         .await
         .expect("feh command failed to start");
+    Command::new("xsetroot")
+        .args(&["-cursor_name", "left_ptr"])
+        .status()
+        .await
+        .expect("xsetroot command failed to start");
     Ok(())
 }
 
