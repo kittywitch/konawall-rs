@@ -1,6 +1,6 @@
 # konawall-rs
 
-An automatic wallpaper fetching and setting script that supports i3 and Sway that obtains wallpapers from konachan.
+An automatic wallpaper fetching and setting script that supports i3 (but also anything that supports feh and xsetroot) and Sway that obtains wallpapers from konachan.
 
 ```
 konawall 0.1.0
