@@ -216,7 +216,7 @@ async fn main() -> Result<()> {
 			for (output, filename) in outputs.into_iter().zip(filenames) {
 				set_sway_wallpaper(&mut sway_conn, output, filename).await?;
 			}
-			sleep(Duration::from_millis(250)).await;
+			sleep(Duration::from_millis(500)).await;
 			()
 		}
 	};
