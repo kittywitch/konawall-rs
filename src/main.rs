@@ -2,6 +2,7 @@ use {
 	anyhow::Result,
 	futures::future::try_join_all,
 	rand::seq::SliceRandom,
+	reqwest::Url,
 	serde::Deserialize,
 	std::{
 		convert::Infallible,
@@ -45,22 +46,22 @@ async fn get_files<'p>(
 	tags_finished.extend(tags.iter().cloned());
 	tags_finished.push("order:random".to_string());
 
-	let tags_appended = tags_finished.to_string();
+	let mut url = Url::parse("https://konachan.com/post.json")?;
+	url.query_pairs_mut()
+		.append_pair("limit", &count.to_string())
+		.append_pair("tags", &tags_finished.to_string());
 
-	let url_with_parameters = format!(
-		"https://konachan.com/post.json?limit={}&tags={}",
-		count, tags_appended
-	);
-
-	let response = reqwest::get(url_with_parameters).await?;
+	let response = reqwest::get(url).await?;
 	if response.status().is_success() {
 		let response_json: Vec<Post> = response.json().await?;
 		Ok(response_json
 			.into_iter()
 			.map(|post| {
-				let post_link = format!("https://konachan.com/post/show/{}", post.id);
-				println!("Post: {}", post_link);
-				println!("- Tags: {}", tags_appended);
+				println!(
+					"Post: https://konachan.com/post/show/{}",
+					post.id.to_string()
+				);
+				println!("- Tags: {}", tags_finished);
 				println!("- Download: {}", post.file_url);
 				get_file(dir, post)
 			})
@@ -155,7 +156,7 @@ impl FromStr for TagString {
 
 impl std::fmt::Display for TagString {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_str(&self.container.join("+"))
+		f.write_str(&self.container.join(" "))
 	}
 }
 
@@ -181,7 +182,7 @@ struct Opt {
 	#[structopt(
 		long,
 		allow_hyphen_values = true,
-		default_value = "score:>=200+width:>=1600+"
+		default_value = "score:>=200,width:>=1600"
 	)]
 	common: TagString,
 	#[structopt(long, default_value = "random")]
