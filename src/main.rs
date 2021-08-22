@@ -4,11 +4,13 @@ use {
 	rand::seq::SliceRandom,
 	serde::Deserialize,
 	std::{
+		convert::Infallible,
 		env,
 		fs::File,
 		future::Future,
 		io::Write,
 		iter,
+		ops::{Deref, DerefMut},
 		path::{Path, PathBuf},
 		str::{self, FromStr},
 	},
@@ -35,15 +37,21 @@ struct Failure {
 
 async fn get_files<'p>(
 	dir: &'p Path,
-	common_tags: &str,
-	tags: &str,
+	common_tags: &TagString,
+	tags: &TagString,
 	count: u8,
 ) -> Result<Vec<impl Future<Output = Result<PathBuf>> + 'p>> {
-	let tags_appended = format!("{}{}{}", &common_tags, tags, "+order:random");
+	let mut tags_finished = common_tags.clone();
+	tags_finished.extend(tags.iter().cloned());
+	tags_finished.push("order:random".to_string());
+
+	let tags_appended = tags_finished.to_string();
+
 	let url_with_parameters = format!(
 		"https://konachan.com/post.json?limit={}&tags={}",
 		count, tags_appended
 	);
+
 	let response = reqwest::get(url_with_parameters).await?;
 	if response.status().is_success() {
 		let response_json: Vec<Post> = response.json().await?;
@@ -52,7 +60,7 @@ async fn get_files<'p>(
 			.map(|post| {
 				let post_link = format!("https://konachan.com/post/show/{}", post.id);
 				println!("Post: {}", post_link);
-				println!("- Tags: {}", tags);
+				println!("- Tags: {}", tags_appended);
 				println!("- Download: {}", post.file_url);
 				get_file(dir, post)
 			})
@@ -130,17 +138,52 @@ impl FromStr for Modes {
 	}
 }
 
+#[derive(Debug, Clone)]
+struct TagString {
+	container: Vec<String>,
+}
+
+impl FromStr for TagString {
+	type Err = Infallible;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		Ok(TagString {
+			container: s.split(",").map(|x| x.into()).collect(),
+		})
+	}
+}
+
+impl std::fmt::Display for TagString {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str(&self.container.join("+"))
+	}
+}
+
+impl Deref for TagString {
+	type Target = Vec<String>;
+
+	fn deref(&self) -> &Vec<String> {
+		&self.container
+	}
+}
+
+impl DerefMut for TagString {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.container
+	}
+}
+
 #[derive(Debug, StructOpt)]
 #[structopt(name = "konawall", about = "wallpaper randomizer that uses konachan")]
 struct Opt {
 	#[structopt(allow_hyphen_values = true, default_value = "nobody")]
-	tags: Vec<String>,
+	tags: Vec<TagString>,
 	#[structopt(
 		long,
 		allow_hyphen_values = true,
 		default_value = "score:>=200+width:>=1600+"
 	)]
-	common: String,
+	common: TagString,
 	#[structopt(long, default_value = "random")]
 	mode: Modes,
 }
@@ -149,25 +192,33 @@ async fn filenames_get(
 	outputs: usize,
 	temp_dir: &Path,
 	mode: Modes,
-	common_tags: &str,
-	tag_list: &Vec<String>,
+	common_tags: &TagString,
+	tag_list: &Vec<TagString>,
 ) -> Result<Vec<PathBuf>> {
 	let mut filenames = Vec::new();
 
-	let mut rng_random = &mut rand::thread_rng();
-	let mut rng_shuffle = &mut rand::thread_rng();
-	let mut mode_random = iter::from_fn(|| tag_list.choose(&mut rng_random));
+	let mut mode_random = iter::from_fn(|| tag_list.choose(&mut rand::thread_rng()));
 	let mut mode_map = tag_list.iter().cycle();
 	let mut mode_shuffle =
-		iter::repeat_with(|| tag_list.choose_multiple(&mut rng_shuffle, outputs)).flat_map(|i| i);
-	let tag_set = iter::from_fn(|| match mode {
+		iter::repeat_with(|| tag_list.choose_multiple(&mut rand::thread_rng(), outputs))
+			.flat_map(|i| i);
+
+	let mut tag_set = iter::from_fn(|| match mode {
 		Modes::Random => mode_random.next(),
 		Modes::OutputMap => mode_map.next(),
 		Modes::OutputMapShuffle => mode_shuffle.next(),
 	});
 
 	if tag_list.len() <= 1 {
-		filenames.extend(get_files(temp_dir, common_tags, &tag_list[0], outputs as u8).await?);
+		filenames.extend(
+			get_files(
+				temp_dir,
+				common_tags,
+				tag_set.next().unwrap(),
+				outputs as u8,
+			)
+			.await?,
+		);
 	} else {
 		for (_, tag) in (0..outputs).zip(tag_set) {
 			filenames.extend(get_files(temp_dir, common_tags, tag, 1).await?);
