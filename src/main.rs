@@ -54,15 +54,21 @@ async fn get_files<'p>(
 	let response = reqwest::get(url).await?;
 	if response.status().is_success() {
 		let response_json: Vec<Post> = response.json().await?;
+		if response_json.len() < 1 {
+			eprintln!(
+				"The query \"{}\" had no results. You may want to use different tags.",
+				tags_finished
+			)
+		}
 		Ok(response_json
 			.into_iter()
 			.map(|post| {
-				println!(
+				eprintln!(
 					"Post: https://konachan.com/post/show/{}",
 					post.id.to_string()
 				);
-				println!("- Tags: {}", tags_finished);
-				println!("- Download: {}", post.file_url);
+				eprintln!("- Tags: {}", tags_finished);
+				eprintln!("- Download: {}", post.file_url);
 				get_file(dir, post)
 			})
 			.collect())
