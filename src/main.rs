@@ -133,9 +133,13 @@ impl FromStr for Modes {
 #[derive(Debug, StructOpt)]
 #[structopt(name = "konawall", about = "wallpaper randomizer that uses konachan")]
 struct Opt {
-	#[structopt(default_value = "nobody")]
+	#[structopt(allow_hyphen_values = true, default_value = "nobody")]
 	tags: Vec<String>,
-	#[structopt(long, default_value = "score:>=200+width:>=1600+")]
+	#[structopt(
+		long,
+		allow_hyphen_values = true,
+		default_value = "score:>=200+width:>=1600+"
+	)]
 	common: String,
 	#[structopt(long, default_value = "random")]
 	mode: Modes,
