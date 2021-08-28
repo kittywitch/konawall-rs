@@ -2,6 +2,13 @@
 
 An automatic wallpaper fetching and setting script that supports i3 (but also anything that supports feh and xsetroot) and Sway that obtains wallpapers from konachan.
 
+A module and package are available for NixOS+home-manager users in [arcnmx/nixexprs](https://github.com/arcnmx/nixexprs):
+
+* [home-manager module](https://github.com/arcnmx/nixexprs/blob/master/modules/home/konawall.nix)
+* [package](https://github.com/arcnmx/nixexprs/blob/master/pkgs/public/konawall.nix)
+
+## Help
+
 ```
 konawall 0.1.0
 wallpaper randomizer that uses konachan
