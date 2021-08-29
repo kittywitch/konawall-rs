@@ -7,6 +7,14 @@ A module and package are available for NixOS+home-manager users in [arcnmx/nixex
 * [home-manager module](https://github.com/arcnmx/nixexprs/blob/master/modules/home/konawall.nix)
 * [package](https://github.com/arcnmx/nixexprs/blob/master/pkgs/public/konawall.nix)
 
+The wallpapers chosen are logged into the journal.
+
+An alias for obtaining them (that requires jq) is:
+
+```shell
+journalctl _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value konawall.service --user) -o json | jq -r '.MESSAGE'"
+```
+
 ## Help
 
 ```
