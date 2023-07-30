@@ -16,12 +16,15 @@ use {
 		str::{self, FromStr},
 	},
 	structopt::StructOpt,
-	swayipc_async::Connection,
 	tempfile::tempdir,
 	tokio::{
 		process::Command,
 		time::{sleep, Duration},
 	},
+};
+#[cfg(target_os = "linux")]
+use {
+	swayipc_async::Connection,
 	xrandr::XHandle,
 };
 
@@ -40,7 +43,7 @@ async fn get_files<'p>(
 	dir: &'p Path,
 	common_tags: &TagString,
 	tags: &TagString,
-	count: u8,
+	count: usize,
 ) -> Result<Vec<impl Future<Output = Result<PathBuf>> + 'p>> {
 	let mut tags_finished = common_tags.clone();
 	tags_finished.extend(tags.iter().cloned());
@@ -95,6 +98,7 @@ async fn get_file(dir: &Path, post: Post) -> Result<PathBuf> {
 	Ok(file_path)
 }
 
+#[cfg(target_os = "linux")]
 async fn set_sway_wallpaper(
 	sway_conn: &mut Connection,
 	output: swayipc_async::Output,
@@ -110,6 +114,25 @@ async fn set_sway_wallpaper(
 	Ok(())
 }
 
+#[cfg(target_os = "macos")]
+async fn set_macos_wallpaper(
+	output: usize,
+	filename: &PathBuf
+) -> Result<()> {
+	let wallpaper_path = filename.as_path().display().to_string();
+	println!("Setting wallpaper for output {} to {}", output, wallpaper_path);
+	Command::new("osascript")
+		.args(&[
+			"-e",
+			&format!(
+				"tell application \"System Events\" to set picture of desktop {} to \"{}\"",
+				output, filename.as_path().display().to_string()
+			),
+		]).status().await.expect("Failed to run osascript command");
+		Ok(())
+}
+
+#[cfg(target_os = "linux")]
 async fn set_i3_wallpaper(filenames: Vec<PathBuf>) -> Result<()> {
 	Command::new("feh")
 		.args(&["--no-fehbg", "--bg-fill"])
@@ -222,7 +245,7 @@ async fn filenames_get(
 				temp_dir,
 				common_tags,
 				tag_set.next().unwrap(),
-				outputs as u8,
+				outputs,
 			)
 			.await?,
 		);
@@ -237,6 +260,40 @@ async fn filenames_get(
 	Ok(filenames)
 }
 
+#[cfg(target_os = "macos")]
+#[tokio::main]
+async fn main() -> Result<()> {
+	let temp_dir = tempdir()?;
+
+	let Opt {
+		tags: tag_list,
+		common: common_tags,
+		mode,
+	} = Opt::from_args();
+
+	let outputs = Command::new("osascript")
+		.args(&[
+		"-e",
+		"tell application \"System Events\" to log of count of desktops",
+		]).output().await.expect("Failed to run osascript command");
+	let output_int: usize = String::from_utf8_lossy(&outputs.stderr).trim().parse().unwrap();
+	let filenames = filenames_get(
+		output_int,
+		&temp_dir.path(),
+		mode,
+		&common_tags,
+		&tag_list,
+	).await?;
+
+	for (i, item) in filenames.iter().enumerate(){
+		set_macos_wallpaper(i, item).await?;
+		sleep(Duration::from_millis(500)).await;
+	}
+
+	Ok(())
+}
+
+#[cfg(target_os = "linux")]
 #[tokio::main]
 async fn main() -> Result<()> {
 	let temp_dir = tempdir()?;
