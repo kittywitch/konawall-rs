@@ -65,7 +65,6 @@ in
               cfg.mode
               "--common"
               (concatStringsSep "," cfg.commonTags)
-              "--tags"
               (concatStringsSep "," cfg.tags)
             ];
             RunAtLoad = true;
