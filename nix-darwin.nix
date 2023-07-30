@@ -47,7 +47,7 @@ in
         description = "How often to rotate backgrounds (specify as a duration in seconds)";
       };
     };
-    config.launchd.userAgents.konawall = mkIf cfg.enable {
+    config.launchd.agents.konawall = mkIf cfg.enable {
       program = "${cfg.package}/bin/konawall";
       arguments = [
         "--mode"
