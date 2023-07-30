@@ -28,5 +28,6 @@
       ))
     // {
       hmModules.konawall = import ./home-manager.nix {konawall = self.packages.konawall;};
+      darwinModules.konawall = import ./nix-darwin.nix {konawall = self.packages.konawall;};
     };
 }

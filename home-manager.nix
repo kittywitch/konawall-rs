@@ -48,87 +48,67 @@ in
       };
     };
 
-    config = mkIf cfg.enable {
-      launchd = mkIf pkgs.hostPlatform.isDarwin {
-        services = {
-          konawall = {
-            KeepAlive = true;
-            RunAtLoad = true;
-            StandardErrorPath = "/tmp/konawall.err";
-            StandardOutPath = "/tmp/konawall.out";
-            ProgramArguments = [
-              "${cfg.package}/bin/konawall"
-              "--mode"
-              cfg.mode
-              "--common"
-              (escapeShellArg (concatStringsSep "," cfg.commonTags))
-              (concatStringsSep "," cfg.tags)
+    config.systemd.user = mkIf cfg.enable {
+      services = {
+        konawall = {
+          Unit = rec {
+            Description = "Random wallpapers";
+            Wants = [
+              "network-online.target"
             ];
+            After = mkMerge [
+              ["graphical-session-pre.target" "network-online.target"]
+              (mkIf config.wayland.windowManager.sway.enable ["sway-session.target"])
+            ];
+            PartOf = mkMerge [
+              ["graphical-session.target"]
+              (mkIf config.wayland.windowManager.sway.enable ["sway-session.target"])
+            ];
+            Requisite = PartOf;
+          };
+          Service = {
+            Type = "oneshot";
+            Environment = mkIf config.xsession.enable [
+              "PATH=${makeBinPath (with pkgs; [feh pkgs.xorg.xsetroot])}"
+            ];
+            ExecStart = let
+              tags = map (concatStringsSep ",") cfg.tagList;
+              tags-escaped = escapeShellArgs tags;
+              common = concatStringsSep "," cfg.commonTags;
+              common-escaped = escapeShellArg common;
+            in "${cfg.package}/bin/konawall --mode ${cfg.mode} ${optionalString (cfg.commonTags != []) "--common ${common-escaped}"} ${tags-escaped}";
+            RemainAfterExit = true;
+            IOSchedulingClass = "idle";
+            TimeoutStartSec = "5m";
+          };
+          Install.WantedBy = mkIf (cfg.interval == null) (mkMerge [
+            (mkDefault ["graphical-session.target"])
+            (mkIf config.wayland.windowManager.sway.enable ["sway-session.target"])
+          ]);
+        };
+        konawall-rotation = mkIf (cfg.interval != null) {
+          Unit = {
+            Description = "Random wallpaper rotation";
+            inherit (service.Unit) Requisite;
+          };
+          Service = {
+            Type = "oneshot";
+            ExecStart = "${systemctlPath} --user --no-block restart konawall";
           };
         };
       };
-      systemd.user = mkIf pkgs.hostPlatform.isLinux {
-        services = {
-          konawall = {
-            Unit = rec {
-              Description = "Random wallpapers";
-              Wants = [
-                "network-online.target"
-              ];
-              After = mkMerge [
-                ["graphical-session-pre.target" "network-online.target"]
-                (mkIf config.wayland.windowManager.sway.enable ["sway-session.target"])
-              ];
-              PartOf = mkMerge [
-                ["graphical-session.target"]
-                (mkIf config.wayland.windowManager.sway.enable ["sway-session.target"])
-              ];
-              Requisite = PartOf;
-            };
-            Service = {
-              Type = "oneshot";
-              Environment = mkIf config.xsession.enable [
-                "PATH=${makeBinPath (with pkgs; [feh pkgs.xorg.xsetroot])}"
-              ];
-              ExecStart = let
-                tags = map (concatStringsSep ",") cfg.tagList;
-                tags-escaped = escapeShellArgs tags;
-                common = concatStringsSep "," cfg.commonTags;
-                common-escaped = escapeShellArg common;
-              in "${cfg.package}/bin/konawall --mode ${cfg.mode} ${optionalString (cfg.commonTags != []) "--common ${common-escaped}"} ${tags-escaped}";
-              RemainAfterExit = true;
-              IOSchedulingClass = "idle";
-              TimeoutStartSec = "5m";
-            };
-            Install.WantedBy = mkIf (cfg.interval == null) (mkMerge [
-              (mkDefault ["graphical-session.target"])
-              (mkIf config.wayland.windowManager.sway.enable ["sway-session.target"])
-            ]);
-          };
-          konawall-rotation = mkIf (cfg.interval != null) {
-            Unit = {
-              Description = "Random wallpaper rotation";
-              inherit (service.Unit) Requisite;
-            };
-            Service = {
-              Type = "oneshot";
-              ExecStart = "${systemctlPath} --user --no-block restart konawall";
-            };
-          };
+      timers.konawall-rotation = mkIf (cfg.interval != null) {
+        Unit = {
+          inherit (service.Unit) After PartOf;
         };
-        timers.konawall-rotation = mkIf (cfg.interval != null) {
-          Unit = {
-            inherit (service.Unit) After PartOf;
-          };
-          Timer = {
-            OnUnitInactiveSec = cfg.interval;
-            OnStartupSec = 0;
-          };
-          Install.WantedBy = mkMerge [
-            (mkDefault ["graphical-session.target"])
-            (mkIf config.wayland.windowManager.sway.enable ["sway-session.target"])
-          ];
+        Timer = {
+          OnUnitInactiveSec = cfg.interval;
+          OnStartupSec = 0;
         };
+        Install.WantedBy = mkMerge [
+          (mkDefault ["graphical-session.target"])
+          (mkIf config.wayland.windowManager.sway.enable ["sway-session.target"])
+        ];
       };
     };
   }
