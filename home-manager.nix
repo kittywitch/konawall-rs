@@ -1,11 +1,10 @@
-{
+{konawall}: {
   pkgs,
   lib,
   config,
   ...
 }: let
   cfg = config.services.konawall;
-  arc = import ../../canon.nix {inherit pkgs;};
   service = config.systemd.user.services.konawall;
   inherit (config.systemd.user) systemctlPath;
   konashow = pkgs.writeShellScriptBin "konashow" ''
@@ -35,7 +34,7 @@ in
       };
       package = mkOption {
         type = types.package;
-        default = pkgs.konawall or arc.packages.konawall;
+        default = konawall;
       };
       konashow = mkOption {
         type = types.package;

@@ -19,6 +19,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
         konawall = pkgs.callPackage ./package.nix {};
       in {
+        hmModules.konawall = import ./home-manager.nix {inherit konawall;};
         packages = {
           inherit konawall;
           default = konawall;
