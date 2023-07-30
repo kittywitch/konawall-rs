@@ -59,7 +59,7 @@ in
         konawall = {
           enable = cfg.enable;
           config = {
-            Program = ["${cfg.package}/bin/konawall"];
+            Program = "${cfg.package}/bin/konawall";
             ProgramArguments = [
               "--mode"
               cfg.mode
