@@ -48,19 +48,21 @@ in
       };
     };
     config.launchd.agents.konawall = mkIf cfg.enable {
-      program = "${cfg.package}/bin/konawall";
-      arguments = [
-        "--mode"
-        cfg.mode
-        "--common"
-        (concatStringsSep "," cfg.commonTags)
-        "--tags"
-        (concatStringsSep "," cfg.tags)
-      ];
-      StartInterval = cfg.interval or 3600;
-      keepAlive = false;
-      runAtLoad = true;
-      standardOutPath = "/tmp/konawall.log";
-      standardErrorPath = "/tmp/konawall.log";
+      serviceConfig = {
+        program = "${cfg.package}/bin/konawall";
+        arguments = [
+          "--mode"
+          cfg.mode
+          "--common"
+          (concatStringsSep "," cfg.commonTags)
+          "--tags"
+          (concatStringsSep "," cfg.tags)
+        ];
+        StartInterval = cfg.interval or 3600;
+        keepAlive = false;
+        runAtLoad = true;
+        standardOutPath = "/tmp/konawall.log";
+        standardErrorPath = "/tmp/konawall.log";
+      };
     };
   }
