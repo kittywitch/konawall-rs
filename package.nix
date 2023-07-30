@@ -38,5 +38,5 @@ rustPlatform.buildRustPackage rec {
     platforms = platforms.linux ++ platforms.darwin;
   };
 
-  cargoSha256 = "sha256-80TIGzVUnl5VvLbM4ZGwF02ZA2u3xdUNPTAGkWqun0E=";
+  cargoSha256 = "sha256-SgeQ+ZG4gucIXdCn4uRz4EsYHxuiNZXcRyo2M64ZHHI=";
 }
