@@ -50,7 +50,7 @@ in
 
     config.systemd.user =
       mkIf cfg.enable
-      && pkgs.hostPlatform.isLinux {
+      && (pkgs.hostPlatform.isLinux == true) {
         services = {
           konawall = {
             Unit = rec {
