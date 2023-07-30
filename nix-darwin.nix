@@ -1,4 +1,4 @@
-{
+{konawall}: {
   pkgs,
   lib,
   config,
@@ -34,7 +34,7 @@ in
       };
       package = mkOption {
         type = types.package;
-        default = pkgs.konawall;
+        default = konawall;
       };
       konashow = mkOption {
         type = types.package;

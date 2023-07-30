@@ -24,13 +24,19 @@
             default = konawall;
           };
           devShells.default = import ./shell.nix {inherit system rust pkgs;};
-          overlays.default = final: prev: {
-            inherit konawall;
-          };
         }
       ))
     // {
-      hmModules.konawall = import ./home-manager.nix;
-      darwinModules.konawall = import ./nix-darwin.nix;
+      hmModules.konawall = import ./home-manager.nix {
+        konawall = self.packages.${system}.konawall;
+      };
+      darwinModules.konawall = import ./nix-darwin.nix {
+        konawall = self.packages.${system}.konawall;
+      };
+      overlays.default = final: prev: let
+        inherit (final.stdenv.hostPlatform) system;
+      in {
+        konawall = self.packages.${system}.konawall;
+      };
     };
 }
