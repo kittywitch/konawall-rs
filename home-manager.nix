@@ -60,12 +60,16 @@ in
           enable = cfg.enable;
           config = {
             Program = "${cfg.package}/bin/konawall";
-            ProgramArguments = [
+            ProgramArguments = let
+              tags = concatStringsSep "," (map (concatStringsSep ",") cfg.tagList);
+              common = concatStringsSep "," cfg.commonTags;
+            in [
+              "${cfg.package}/bin/konawall"
               "--mode"
               cfg.mode
               "--common"
-              (concatStringsSep "," cfg.commonTags)
-              (concatStringsSep "," cfg.tags)
+              common
+              tags
             ];
             RunAtLoad = true;
             KeepAlive = false;
