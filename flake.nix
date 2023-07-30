@@ -27,12 +27,8 @@
         }
       ))
     // {
-      hmModules.konawall = import ./home-manager.nix {
-        konawall = self.packages.${system}.konawall;
-      };
-      darwinModules.konawall = import ./nix-darwin.nix {
-        konawall = self.packages.${system}.konawall;
-      };
+      hmModules.konawall = import ./home-manager.nix;
+      darwinModules.konawall = import ./nix-darwin.nix;
       overlays.default = final: prev: let
         inherit (final.stdenv.hostPlatform) system;
       in {
