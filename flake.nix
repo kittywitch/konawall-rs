@@ -13,18 +13,20 @@
     nixpkgs,
     rust,
   }:
-    flake-utils.lib.eachDefaultSystem
-    (
-      system: let
-        pkgs = nixpkgs.legacyPackages.${system};
-        konawall = pkgs.callPackage ./package.nix {};
-      in {
-        hmModules.konawall = import ./home-manager.nix {inherit konawall;};
-        packages = {
-          inherit konawall;
-          default = konawall;
-        };
-        devShells.default = import ./shell.nix {inherit system rust pkgs;};
-      }
-    );
+    (flake-utils.lib.eachDefaultSystem
+      (
+        system: let
+          pkgs = nixpkgs.legacyPackages.${system};
+          konawall = pkgs.callPackage ./package.nix {};
+        in {
+          packages = {
+            inherit konawall;
+            default = konawall;
+          };
+          devShells.default = import ./shell.nix {inherit system rust pkgs;};
+        }
+      ))
+    // {
+      hmModules.konawall = import ./home-manager.nix {konawall = self.packages.konawall;};
+    };
 }
