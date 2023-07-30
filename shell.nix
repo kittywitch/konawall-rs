@@ -3,7 +3,7 @@
   rust,
   system,
 }:
-rust.devShells.${system}.channels.stable.overrideAttrs (old: {
+rust.devShells.${system}.stable.overrideAttrs (old: {
   nativeBuildInputs =
     old.nativeBuildInputs
     or []
