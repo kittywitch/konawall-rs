@@ -2,10 +2,7 @@
 
 An automatic wallpaper fetching and setting script that supports i3 (but also anything that supports feh and xsetroot) and Sway that obtains wallpapers from konachan.
 
-A module and package are available for NixOS+home-manager users in [arcnmx/nixexprs][]:
-
--   [home-manager module][]
--   [package][]
+A module and package are available for NixOS, nix-darwin and home-manager users here.
 
 The wallpapers chosen are logged into the journal.
 
@@ -39,7 +36,3 @@ journalctl _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value konaw
 -   random - Picks one of the tag sets provided with –common prepended.
 -   map - Maps output to tag set directly with –common prepended.
 -   shuffle - Does what map does, but shuffles first.
-
-  [arcnmx/nixexprs]: https://github.com/arcnmx/nixexprs
-  [home-manager module]: https://github.com/arcnmx/nixexprs/blob/master/modules/home/konawall.nix
-  [package]: https://github.com/arcnmx/nixexprs/blob/master/pkgs/public/konawall.nix
