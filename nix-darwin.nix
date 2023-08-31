@@ -46,11 +46,19 @@ in
         example = 3600;
         description = "How often to rotate backgrounds (specify as a duration in seconds)";
       };
+      timeout = mkOption {
+        type = types.int;
+        default = 20;
+        example = 20;
+        description = "Time to wait before killing konawall due to hangs";
+      };
     };
     config.launchd.agents.konawall = mkIf cfg.enable {
       serviceConfig = {
-        program = "${cfg.package}/bin/konawall";
+        program = "${pkgs.coreutils}/bin/timeout";
         arguments = [
+          "${builtins.toString timeout}"
+          "${cfg.package}/bin/konawall"
           "--mode"
           cfg.mode
           "--common"

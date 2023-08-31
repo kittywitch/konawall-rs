@@ -46,6 +46,12 @@ in
         example = "20m";
         description = "How often to rotate backgrounds (specify as a systemd interval)";
       };
+      timeout = mkOption {
+        type = types.int;
+        default = 20;
+        example = 20;
+        description = "Timeout for macOS";
+      };
       interval_macos = mkOption {
         type = types.nullOr types.int;
         default = null;
@@ -59,11 +65,13 @@ in
         konawall = {
           enable = cfg.enable;
           config = {
-            Program = "${cfg.package}/bin/konawall";
+            Program = "${pkgs.coreutils}/bin/timeout";
             ProgramArguments = let
               tags = concatStringsSep "," (map (concatStringsSep ",") cfg.tagList);
               common = concatStringsSep "," cfg.commonTags;
             in [
+              "${pkgs.coreutils}/bin/timeout"
+              (builtins.toString cfg.timeout)
               "${cfg.package}/bin/konawall"
               "--mode"
               cfg.mode
